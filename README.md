@@ -1,214 +1,116 @@
-<!--
-*** Thanks for checking out the Best-README-Template. If you have a suggestion
-*** that would make this better, please fork the repo and create a pull request
-*** or simply open an issue with the tag "enhancement".
-*** Thanks again! Now go create something AMAZING! :D
--->
+## Manage your machine learning lifecycle with MLflow and Amazon SageMaker
 
+### Overview
 
+In this repository we show how to deploy MLflow on AWS Fargate and how to use it during your ML project
+with [Amazon SageMaker](https://aws.amazon.com/sagemaker). You will use Amazon SageMaker to develop, train, tune and
+deploy a Scikit-Learn based ML model (Random Forest) and track experiment runs and models with MLflow.
 
-<!-- PROJECT SHIELDS -->
-<!--
-*** I'm using markdown "reference style" links for readability.
-*** Reference links are enclosed in brackets [ ] instead of parentheses ( ).
-*** See the bottom of this document for the declaration of the reference variables
-*** for contributors-url, forks-url, etc. This is an optional, concise syntax you may use.
-*** https://www.markdownguide.org/basic-syntax/#reference-style-links
--->
-[![Contributors][contributors-shield]][contributors-url]
-[![Forks][forks-shield]][forks-url]
-[![Stargazers][stars-shield]][stars-url]
-[![Issues][issues-shield]][issues-url]
-[![MIT License][license-shield]][license-url]
-[![LinkedIn][linkedin-shield]][linkedin-url]
+This implementation shows how to do the following:
 
+* Host a serverless MLflow server on AWS Fargate with S3 as artifact store and RDS and backend stores
+* Track experiment runs running on SageMaker with MLflow
+* Register models trained in SageMaker in the MLflow model registry
+* Deploy an MLflow model into a SageMaker endpoint
 
+### MLflow tracking server
 
-<!-- PROJECT LOGO -->
-<br />
-<p align="center">
-  <a href="https://github.com/othneildrew/Best-README-Template">
-    <img src="images/logo.png" alt="Logo" width="80" height="80">
-  </a>
+You can set a central MLflow tracking server during your ML project. By using this remote MLflow server, data scientists
+will be able to manage experiments and models in a collaborative manner.
+An MLflow tracking server also has two components for storage: a ```backend store``` and an ```artifact store```. This
+implementation uses an Amazon S3 bucket as artifact store and an Amazon RDS instance for MySQL as backend store.
 
-  <h3 align="center">Best-README-Template</h3>
-
-  <p align="center">
-    An awesome README template to jumpstart your projects!
-    <br />
-    <a href="https://github.com/othneildrew/Best-README-Template"><strong>Explore the docs »</strong></a>
-    <br />
-    <br />
-    <a href="https://github.com/othneildrew/Best-README-Template">View Demo</a>
-    ·
-    <a href="https://github.com/othneildrew/Best-README-Template/issues">Report Bug</a>
-    ·
-    <a href="https://github.com/othneildrew/Best-README-Template/issues">Request Feature</a>
-  </p>
-</p>
-
-
-
-<!-- TABLE OF CONTENTS -->
-<details open="open">
-  <summary>Table of Contents</summary>
-  <ol>
-    <li>
-      <a href="#about-the-project">About The Project</a>
-      <ul>
-        <li><a href="#built-with">Built With</a></li>
-      </ul>
-    </li>
-    <li>
-      <a href="#getting-started">Getting Started</a>
-      <ul>
-        <li><a href="#prerequisites">Prerequisites</a></li>
-        <li><a href="#installation">Installation</a></li>
-      </ul>
-    </li>
-    <li><a href="#usage">Usage</a></li>
-    <li><a href="#roadmap">Roadmap</a></li>
-    <li><a href="#contributing">Contributing</a></li>
-    <li><a href="#license">License</a></li>
-    <li><a href="#contact">Contact</a></li>
-    <li><a href="#acknowledgements">Acknowledgements</a></li>
-  </ol>
-</details>
-
-
-
-<!-- ABOUT THE PROJECT -->
-## About The Project
-
-[![Product Name Screen Shot][product-screenshot]](https://example.com)
-
-There are many great README templates available on GitHub, however, I didn't find one that really suit my needs so I created this enhanced one. I want to create a README template so amazing that it'll be the last one you ever need -- I think this is it.
-
-Here's why:
-* Your time should be focused on creating something amazing. A project that solves a problem and helps others
-* You shouldn't be doing the same tasks over and over like creating a README from scratch
-* You should element DRY principles to the rest of your life :smile:
-
-Of course, no one template will serve all projects since your needs may be different. So I'll be adding more in the near future. You may also suggest changes by forking this repo and creating a pull request or opening an issue. Thanks to all the people have have contributed to expanding this template!
-
-A list of commonly used resources that I find helpful are listed in the acknowledgements.
-
-### Built With
-
-This section should list any major frameworks that you built your project using. Leave any add-ons/plugins for the acknowledgements section. Here are a few examples.
-* [Bootstrap](https://getbootstrap.com)
-* [JQuery](https://jquery.com)
-* [Laravel](https://laravel.com)
-
-
-
-<!-- GETTING STARTED -->
-## Getting Started
-
-This is an example of how you may give instructions on setting up your project locally.
-To get a local copy up and running follow these simple example steps.
+![](media/architecture-mlflow.png)
 
 ### Prerequisites
+We will use [the AWS CDK](https://cdkworkshop.com/) to deploy the MLflow server.
 
-This is an example of how to list things you need to use the software and how to install them.
-* npm
-  ```sh
-  npm install npm@latest -g
-  ```
+To go through this example, make sure you have the following:
+* An AWS account where the service will be deployed
+* [AWS CDK installed and configured](https://docs.aws.amazon.com/cdk/latest/guide/getting_started.html). Make sure to have the credentials and permissions to deploy the stack into your account
+* [Docker](https://www.docker.com) to build and push the MLflow container image to ECR
+* This [Github repository](https://github.com/aws-samples/amazon-sagemaker-mlflow-fargate) cloned into your environment to follow the steps
 
-### Installation
+### Deploying the stack
+You can view the CDK stack details in [app.py](https://github.com/aws-samples/amazon-sagemaker-mlflow-fargate/blob/main/app.py).
+Execute the following commands to install CDK and make sure you have the right dependencies:
 
-1. Get a free API Key at [https://example.com](https://example.com)
-2. Clone the repo
-   ```sh
-   git clone https://github.com/your_username_/Project-Name.git
-   ```
-3. Install NPM packages
-   ```sh
-   npm install
-   ```
-4. Enter your API in `config.js`
-   ```JS
-   const API_KEY = 'ENTER YOUR API';
-   ```
+```
+npm install -g aws-cdk@2.8.0
+python3 -m venv .venv
+source .venv/bin/activate
+pip3 install -r requirements.txt
+```
 
+Once this is installed, you can execute the following commands to deploy the inference service into your account:
 
+```
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account | tr -d '"')
+AWS_REGION=$(aws configure get region)
+cdk bootstrap aws://${ACCOUNT_ID}/${AWS_REGION}
+cdk deploy --parameters ProjectName=mlflow --require-approval never
+```
 
-<!-- USAGE EXAMPLES -->
-## Usage
+The first 2 commands will get your account ID and current AWS region using the AWS CLI on your computer. ```cdk
+bootstrap``` and ```cdk deploy``` will build the container image locally, push it to ECR, and deploy the stack. 
 
-Use this space to show useful examples of how a project can be used. Additional screenshots, code examples and demos work well in this space. You may also link to more resources.
+The stack will take a few minutes to launch the MLflow server on AWS Fargate, with an S3 bucket and a MySQL database on
+RDS. You can then use the load balancer URI present in the stack outputs to access the MLflow UI:
+![](media/load-balancer.png)
+![](media/mlflow-interface.png)
 
-_For more examples, please refer to the [Documentation](https://example.com)_
+**N.B:** In this illustrative example stack, the load balancer is launched on a public subnet and is internet facing.
+For security purposes, you may want to provision an internal load balancer in your VPC private subnets where there is no
+direct connectivity from the outside world. Here is a blog post explaining how to achieve
+this: [Access Private applications on AWS Fargate using Amazon API Gateway PrivateLink](https://aws.amazon.com/blogs/compute/access-private-applications-on-aws-fargate-using-amazon-api-gateway-privatelink/)
 
+### Managing an ML lifecycle with Amazon SageMaker and MLflow
 
+You now have a remote MLflow tracking server running accessible through
+a [REST API](https://mlflow.org/docs/latest/rest-api.html#rest-api) via
+the [load balancer uri](https://mlflow.org/docs/latest/quickstart.html#quickstart-logging-to-remote-server). 
+You can use the MLflow Tracking API to log parameters, metrics, and models when running your machine learning project with Amazon
+SageMaker. For this you will need install the MLflow library when running your code on Amazon SageMaker and set the
+remote tracking uri to be your load balancer address.
 
-<!-- ROADMAP -->
-## Roadmap
+The following python API command allows you to point your code executing on SageMaker to your MLflow remote server:
 
-See the [open issues](https://github.com/othneildrew/Best-README-Template/issues) for a list of proposed features (and known issues).
+```
+import mlflow
+mlflow.set_tracking_uri('<YOUR LOAD BALANCER URI>')
+```
 
+Connect to your notebook instance and set the remote tracking URI.
+![](media/architecture-experiments.png)
 
+### Running an example lab
 
-<!-- CONTRIBUTING -->
-## Contributing
+This describes how to develop, train, tune and deploy a Random Forest model using Scikit-learn with
+the [SageMaker Python SDK](https://sagemaker.readthedocs.io/en/stable/frameworks/sklearn/using_sklearn.html). We use
+the [Boston Housing dataset](https://scikit-learn.org/stable/datasets/index.html#boston-dataset), present
+in [Scikit-Learn](https://scikit-learn.org/stable/index.html.), and log our machine learning runs into MLflow. You can
+find the original lab in
+the [SageMaker Examples](https://github.com/aws/amazon-sagemaker-examples/tree/fb04396d2e7ceeb135b0b0a516e54c97922ca0d8/sagemaker-python-sdk/scikit_learn_randomforest)
+repository for more details on using custom Scikit-learn scipts with Amazon SageMaker.
 
-Contributions are what make the open source community such an amazing place to be learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+Follow the step-by-step guide by executing the notebooks in the following folders:
 
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+* lab/1_track_experiments.ipynb
+* lab/2_track_experiments_hpo.ipynb
+* lab/3_deploy_model.ipynb
 
+### Current limitation on user access control
 
+The [open source version](https://github.com/mlflow/mlflow) of MLflow does not currently provide user access control
+features in case you have multiple tenants on your MLflow server. This means any user having access to the MLflow server
+can modify experiments, model versions, and stages. This can be a challenge for enterprises in regulated industries that
+need to keep strong model governance for audit purposes.
 
-<!-- LICENSE -->
-## License
+### Security
 
-Distributed under the MIT License. See `LICENSE` for more information.
+See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
 
+### License
 
+This library is licensed under the MIT-0 License. See the LICENSE file.
 
-<!-- CONTACT -->
-## Contact
-
-Your Name - [@your_twitter](https://twitter.com/your_username) - email@example.com
-
-Project Link: [https://github.com/your_username/repo_name](https://github.com/your_username/repo_name)
-
-
-
-<!-- ACKNOWLEDGEMENTS -->
-## Acknowledgements
-* [GitHub Emoji Cheat Sheet](https://www.webpagefx.com/tools/emoji-cheat-sheet)
-* [Img Shields](https://shields.io)
-* [Choose an Open Source License](https://choosealicense.com)
-* [GitHub Pages](https://pages.github.com)
-* [Animate.css](https://daneden.github.io/animate.css)
-* [Loaders.css](https://connoratherton.com/loaders)
-* [Slick Carousel](https://kenwheeler.github.io/slick)
-* [Smooth Scroll](https://github.com/cferdinandi/smooth-scroll)
-* [Sticky Kit](http://leafo.net/sticky-kit)
-* [JVectorMap](http://jvectormap.com)
-* [Font Awesome](https://fontawesome.com)
-
-
-
-
-
-<!-- MARKDOWN LINKS & IMAGES -->
-<!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[contributors-shield]: https://img.shields.io/github/contributors/othneildrew/Best-README-Template.svg?style=for-the-badge
-[contributors-url]: https://github.com/othneildrew/Best-README-Template/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/othneildrew/Best-README-Template.svg?style=for-the-badge
-[forks-url]: https://github.com/othneildrew/Best-README-Template/network/members
-[stars-shield]: https://img.shields.io/github/stars/othneildrew/Best-README-Template.svg?style=for-the-badge
-[stars-url]: https://github.com/othneildrew/Best-README-Template/stargazers
-[issues-shield]: https://img.shields.io/github/issues/othneildrew/Best-README-Template.svg?style=for-the-badge
-[issues-url]: https://github.com/othneildrew/Best-README-Template/issues
-[license-shield]: https://img.shields.io/github/license/othneildrew/Best-README-Template.svg?style=for-the-badge
-[license-url]: https://github.com/othneildrew/Best-README-Template/blob/master/LICENSE.txt
-[linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
-[linkedin-url]: https://linkedin.com/in/othneildrew
-[product-screenshot]: images/screenshot.png
